@@ -2,11 +2,11 @@ from flask import Flask, request, render_template
 import pickle
 import numpy as np
 
+# Initialize Flask app
 app = Flask(__name__)
 
-# Load the trained model and the scaler
+# Load trained model (tuned RandomForest)
 model = pickle.load(open("Model.pkl", "rb"))
-scaler = pickle.load(open("scaler.pkl", "rb"))  # <-- You must generate and include this file
 
 @app.route('/')
 def home():
@@ -15,28 +15,20 @@ def home():
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
-        # Collect form inputs in the exact order used during training
-        months_last = float(request.form['months_last'])
-        num_donations = float(request.form['num_donations'])
-        total_volume = float(request.form['total_volume'])
-        months_first = float(request.form['months_first'])
+        # Collect input features from the form
+        features = [float(x) for x in request.form.values()]
+        final_features = np.array(features).reshape(1, -1)
 
-        # Combine into a numpy array
-        final_features = np.array([[months_last, num_donations, total_volume, months_first]])
+        # Predict using the model
+        prediction = model.predict(final_features)[0]
 
-        # Apply the same scaling used during training
-        final_features_scaled = scaler.transform(final_features)
-
-        # Predict using the trained model
-        prediction = model.predict(final_features_scaled)[0]
-
-        # Format output for display
-        output = "🩸 Will Donate" if prediction == 1 else "🚫 Will Not Donate"
+        # Decide output text
+        output = "Will Donate" if prediction == 1 else "Will Not Donate"
 
         return render_template("index.html", prediction_text=f"Prediction: {output}")
 
     except Exception as e:
-        # Display error in case of missing or invalid input
+        # Handle any unexpected errors
         return render_template("index.html", prediction_text=f"Error: {str(e)}")
 
 if __name__ == "__main__":
