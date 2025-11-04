@@ -8,9 +8,10 @@ app = Flask(__name__)
 # Load trained AdaBoost model
 try:
     model = pickle.load(open("Model.pkl", "rb"))
+    print("✅ Model loaded successfully.")
 except Exception as e:
     model = None
-    print(f"Error loading model: {e}")
+    print(f"❌ Error loading model: {e}")
 
 @app.route('/')
 def home():
@@ -19,18 +20,22 @@ def home():
 @app.route('/predict', methods=['POST'])
 def predict():
     if model is None:
-        return render_template("index.html", prediction_text="Error: Model not loaded")
+        return render_template("index.html", prediction_text="Error: Model not loaded properly.")
 
     try:
         # Collect input features from the form
         features = [float(x) for x in request.form.values()]
         final_features = np.array(features).reshape(1, -1)
 
-        # Predict using the AdaBoost model
-        prediction = model.predict(final_features)[0]
+        # Get probability of class '1' (Will Donate)
+        probabilities = model.predict_proba(final_features)[0]
+        donate_prob = probabilities[1]  # probability of class 1
 
-        # Determine the prediction result
-        output = "Will Donate" if prediction == 1 else "Will Not Donate"
+        # Apply threshold
+        if donate_prob >= 0.5:
+            output = f"Will Donate (Confidence: {donate_prob:.2f})"
+        else:
+            output = f"Will Not Donate (Confidence: {donate_prob:.2f})"
 
         return render_template("index.html", prediction_text=f"Prediction: {output}")
 
